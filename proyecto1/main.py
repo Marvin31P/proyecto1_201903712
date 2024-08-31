@@ -1,12 +1,14 @@
+import xml.etree.ElementTree as ET
+import graphviz
 
-# Clase NodoMatriz para los elementos de la matriz
+
 class NodoMatriz:
     def __init__(self, valor=None):
         self.valor = valor
-        self.siguiente = None  # Apunta al siguiente nodo en la fila
-        self.abajo = None      # Apunta al siguiente nodo en la columna
+        self.siguiente = None  
+        self.abajo = None      
 
-# Clase Nodo para la lista circular de matrices
+
 class Nodo:
     def __init__(self, nombre=None, filas=0, columnas=0):
         self.nombre = nombre
@@ -15,7 +17,7 @@ class Nodo:
         self.datos = None
         self.siguiente = None
 
-# Clase Matriz usando nodos enlazados
+
 class Matriz:
     def __init__(self, filas, columnas):
         self.filas = filas
@@ -72,7 +74,90 @@ class Matriz:
             nodo = self.obtener_nodo(x-1, y-1)
             return nodo.valor
         return None
+class ListaCircular:
+    def __init__(self):
+        self.primero = None
 
+    def agregar_matriz(self, nombre, filas, columnas):
+        nuevo_nodo = Nodo(nombre, filas, columnas)
+        nuevo_nodo.datos = Matriz(filas, columnas)
+
+        if self.primero is None:
+            self.primero = nuevo_nodo
+            self.primero.siguiente = self.primero
+        else:
+            actual = self.primero
+            while actual.siguiente != self.primero:
+                actual = actual.siguiente
+            actual.siguiente = nuevo_nodo
+            nuevo_nodo.siguiente = self.primero
+
+    def buscar_matriz(self, nombre):
+        if self.primero is None:
+            return None
+        actual = self.primero
+        while True:
+            if actual.nombre == nombre:
+                return actual
+            actual = actual.siguiente
+            if actual == self.primero:
+                break
+        return None
+
+    def procesar_matriz(self, matriz):
+        patrones = []
+        frecuencias = []
+
+        for i in range(matriz.filas):
+            patron = ""
+            for j in range(matriz.columnas):
+                valor = matriz.get_dato(i+1, j+1)
+                patron += '1' if valor > 0 else '0'
+
+            encontrado = False
+            for idx in range(len(patrones)):
+                if patrones[idx] == patron:
+                    frecuencias[idx] += 1
+                    grupo = idx + 1
+                    encontrado = True
+                    break
+
+            if not encontrado:
+                patrones.append(patron)
+                frecuencias.append(1)
+                grupo = len(patrones)
+
+            if len(frecuencias) < grupo:
+                frecuencias.append(0)
+
+            for j in range(matriz.columnas):
+                if matriz.get_dato(grupo, j+1) is None:
+                    matriz.set_dato(grupo, j+1, 0)
+                matriz.set_dato(grupo, j+1, matriz.get_dato(grupo, j+1) + matriz.get_dato(i+1, j+1))
+
+        nueva_matriz = Matriz(matriz.filas, matriz.columnas)
+        for i in range(matriz.filas):
+            for j in range(matriz.columnas):
+                nueva_matriz.set_dato(i+1, j+1, matriz.get_dato(i+1, j+1))
+
+        return nueva_matriz, frecuencias
+
+    def generar_grafica(self, nombre):
+        matriz_nodo = self.buscar_matriz(nombre)
+        if not matriz_nodo:
+            print("Matriz no encontrada.")
+            return
+        
+        dot = graphviz.Digraph(comment=matriz_nodo.nombre)
+        dot.node('A', f'Matriz {matriz_nodo.nombre}\n{matriz_nodo.filas}x{matriz_nodo.columnas}')
+        
+        for i in range(matriz_nodo.filas):
+            for j in range(matriz_nodo.columnas):
+                valor = matriz_nodo.datos.get_dato(i+1, j+1)
+                dot.node(f'{i}{j}', str(valor))
+                dot.edge('A', f'{i}{j}')
+        
+        dot.render(f'{matriz_nodo.nombre}.gv', view=True)
 
 def mostrar_menu():
     print("Menú principal:")
