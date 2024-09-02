@@ -159,6 +159,63 @@ class ListaCircular:
         
         dot.render(f'{matriz_nodo.nombre}.gv', view=True)
 
+
+def generar_grafica_matriz(nombre, matriz, n, m):
+    dot = graphviz.Digraph(comment=nombre)
+    dot.node('A', f'Matriz {nombre}\n{n}x{m}')
+
+    for i in range(n):
+        for j in range(m):
+            valor = matriz.get_dato(i+1, j+1)
+            dot.node(f'{i}{j}', str(valor))
+            dot.edge('A', f'{i}{j}')
+    
+    dot.render(f'{nombre}_reducida.gv', view=True)
+
+
+def cargar_archivo(ruta, lista):
+    try:
+        tree = ET.parse(ruta)
+        root = tree.getroot()
+
+        for matriz_xml in root.findall('matriz'):
+            nombre = matriz_xml.get('nombre')
+            n = int(matriz_xml.get('n'))
+            m = int(matriz_xml.get('m'))
+
+            lista.agregar_matriz(nombre, n, m)
+            nodo_matriz = lista.buscar_matriz(nombre)
+
+            for dato in matriz_xml.findall('dato'):
+                x = int(dato.get('x'))
+                y = int(dato.get('y'))
+                valor = int(dato.text)
+                nodo_matriz.datos.set_dato(x, y, valor)
+
+    except ET.ParseError:
+        print("Error al parsear el archivo XML.")
+    except FileNotFoundError:
+        print(f"El archivo {ruta} no fue encontrado.")
+    except Exception as e:
+        print(f"Se produjo un error: {e}")
+
+def escribir_archivo_salida(nombre, nueva_matriz, frecuencias):
+    root = ET.Element("matrices")
+    matriz_xml = ET.SubElement(root, "matriz", nombre=f"{nombre}_Salida", n=str(nueva_matriz.filas), m=str(nueva_matriz.columnas), g=str(len(frecuencias)))
+
+    for i in range(nueva_matriz.filas):
+        for j in range(nueva_matriz.columnas):
+            valor = nueva_matriz.get_dato(i+1, j+1)
+            ET.SubElement(matriz_xml, "dato", x=str(i+1), y=str(j+1)).text = str(valor)
+
+    for i, frecuencia in enumerate(frecuencias):
+        ET.SubElement(matriz_xml, "frecuencia", g=str(i+1)).text = str(frecuencia)
+
+    tree = ET.ElementTree(root)
+    tree.write(f"{nombre}_Salida.xml")
+
+
+
 def mostrar_menu():
     print("Menú principal:")
     print("1. Cargar archivo")
@@ -170,7 +227,9 @@ def mostrar_menu():
 
 def main():
     
-
+    lista = ListaCircular()
+    nueva_matriz = None
+    frecuencias = []
 
     while True:
         mostrar_menu()
@@ -178,11 +237,20 @@ def main():
         
         if opcion == "1":
             ruta = input("Ingrese la ruta del archivo XML: ")
-            
+            cargar_archivo(ruta, lista)
         elif opcion == "2":
-            print("")
+            nombre = input("Ingrese el nombre de la matriz a procesar: ")
+            nodo_matriz = lista.buscar_matriz(nombre)
+            if nodo_matriz:
+                nueva_matriz, frecuencias = lista.procesar_matriz(nodo_matriz.datos)
+            else:
+                print("Matriz no encontrada.")
         elif opcion == "3":
-           print(" ")
+            if nueva_matriz:
+                nombre = input("Ingrese el nombre para el archivo de salida: ")
+                escribir_archivo_salida(nombre, nueva_matriz, frecuencias)
+            else:
+                print("No hay una matriz procesada.")
         elif opcion == "4":
             print("Datos del estudiante: ")
             print("Carné: 201903712")
@@ -192,11 +260,13 @@ def main():
             print("Semestre: 4to")
             
         elif opcion == "5":
-            print("Función de generar gráfica pendiente de implementación.")
+
+            nombre = input("Ingrese el nombre de la matriz a graficar: ")
+            lista.generar_grafica(nombre)
+            
         elif opcion == "6":
             break
         else:
-            print("Opción no válida. Intente nuevamente.")
-
+            print("Opción no válida. Intente de nuevo.")
 if __name__ == "__main__":
     main()          
